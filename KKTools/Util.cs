@@ -122,5 +122,9 @@ namespace KKTools
                 lblConnection.ForeColor = System.Drawing.Color.Red;
             }
         }
+        public void TestCode()
+        {
+
+        }
     }
 }

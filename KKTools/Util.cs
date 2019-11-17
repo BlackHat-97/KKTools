@@ -50,15 +50,18 @@ namespace KKTools
             //Kiểm tra kết nối mạng
 
             //Nếu có mạng thì tiếp tục tải các file sound chưa download
-            for(int i = 0; i <= listResult.Count; i++)
+            for(int i = 0; i < listResult.Count; i++)
             {
                 try
                 {
-                    downloadSound(listResult[i].SoundUrl, listResult[i].SoundPath);
+                    int id = listResult[i].ServiceTTSID;
+                    var serviceTTS = _context.ServiceTTSs.FirstOrDefault(x => x.ID == id);
+                    string soundPath = System.IO.Directory.GetCurrentDirectory() + "\\" + getPathToSound(serviceTTS,"banmai");
+                    downloadSound(listResult[i].SoundUrl, soundPath);
                 }
                 catch(Exception e)
                 {
-                    MessageBox.Show(e.ToString());
+                    MessageBox.Show(e.Message.ToString());
                     
                 }
             }
@@ -84,8 +87,10 @@ namespace KKTools
             int totalExisted = _context.Results.Where(x => x.ServiceTTSID == serviceTTS.ID && x.Downloaded==true).Count();
             string FormatSoundFile = serviceTTS.FormatSoundFile;
             if (FormatSoundFile == null || FormatSoundFile == "") FormatSoundFile = "wav";
-            ret = System.IO.Directory.GetCurrentDirectory() + "\\Sound\\" + serviceTTS.Name + "\\" +
+            ret = "Sound\\" + serviceTTS.Name + "\\" +
                         voiceName + generateNumberFileName(totalExisted + 1) + "." + FormatSoundFile;
+            //ret = System.IO.Directory.GetCurrentDirectory() + "\\Sound\\" + serviceTTS.Name + "\\" +
+            //            voiceName + generateNumberFileName(totalExisted + 1) + "." + FormatSoundFile;
             return ret;
         }
         public string generateNumberFileName(int num)
@@ -122,9 +127,73 @@ namespace KKTools
                 lblConnection.ForeColor = System.Drawing.Color.Red;
             }
         }
-        public void TestCode()
+        /// <summary>
+        /// Tách đoạn văn thành các đoạn văn nhỏ hơn cho mỗi lần request
+        /// </summary>
+        /// <param name="input"></param>
+        /// <param name="chunkSize"></param>
+        /// <returns></returns>
+        public List<string> getStringRequests(string input, int chunkSize)
         {
+            List<string> stringRequests = new List<string>();
+            string[] Sentences = input.Split('.');
+            foreach (var sentence in Sentences)
+            {
+                if (sentence == "" || sentence == null) continue;
+                else
+                {
+                    if (sentence.Length > chunkSize)
+                    {
+                        // Nếu một sentence quá dài (lớn hơn chunkSize = 80 ký tự). Phân tách thành từng đoạn chunkSize để request
+                        for (int i = 0; i < sentence.Length; i += chunkSize)
+                        {
+                            if (i + chunkSize > sentence.Length) chunkSize = sentence.Length - i;
+                            string text = sentence.Substring(i, chunkSize);
+                            stringRequests.Add(text);
+                            //bool isSuccess = api.requestFPTAPI(input, voiceName, "", allowDownloadSound);
+                        }
+                    }
+                    else
+                    {
+                        stringRequests.Add(sentence);
+                        //bool issSuccess = api.requestFPTAPI(input, voiceName, "", allowDownloadSound);
+                    }
 
+                }
+
+            }
+            return stringRequests;
+        }
+        /// <summary>
+        /// Hàm tạo lại giọng nói
+        /// </summary>
+        /// <param name="streamID"></param>
+        /// <param name="chunkSize"></param>
+        /// <param name="voiceName"></param>
+        /// <param name="allowDownloadSound"></param>
+        /// <returns></returns>
+        public bool reCreate(int streamID, int chunkSize, string voiceName, bool allowDownloadSound)
+        {
+            try
+            {
+                var api = new Api();
+                var stream = _context.Streams.Where(x => x.ID == streamID).FirstOrDefault();
+                string input = stream.Content;
+                int totalDone = stream.DoneSentence;
+                List<string> stringRequests = getStringRequests(input, chunkSize);
+                for(int i = totalDone; i < stream.TotalSentence; i++)
+                {
+                    bool isSuccess = api.requestFPTAPI(stringRequests[i], stream.ID, voiceName, "", allowDownloadSound);
+                    if (isSuccess) stream.DoneSentence++;
+                }
+                _context.SaveChanges();
+                return true;
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.ToString());
+                return false;
+            }
         }
     }
 }

@@ -14,14 +14,14 @@ namespace KKTools
    public  class Api
     {
        
-        public bool requestFPTAPI(string input, string voiceName = "banmai", string speed = "normal", bool allowDownloadSound=true)
+        public bool requestFPTAPI(string input,int streamID, string voiceName = "banmai", string speed = "normal", bool allowDownloadSound=true)
         {
             KKToolsDbContext _context = new KKToolsDbContext();
             var serviceTTS = _context.ServiceTTSs.FirstOrDefault(x => x.Name.ToLower() == "FPT".ToLower());
             bool isSuccess = true;
             using (var client = new HttpClient())
             {
-                var result = sendFPTRequest(client, input, _context,voiceName);                                    
+                var result = sendFPTRequest(client, input, _context,voiceName,streamID);                                    
                 //Kiểm tra response có dữ liêu hay không
                 if (result.IsSuccessStatusCode)
                 {
@@ -64,7 +64,8 @@ namespace KKTools
                         SoundPath= pathToFPTSound,
                         Text= input,
                         Downloaded = isDownloaded,
-                        ServiceTTSID =serviceTTS.ID             
+                        ServiceTTSID =serviceTTS.ID ,
+                        StreamID=streamID  
                     };
                     _context.Results.Add(newResult);
                     _context.SaveChanges();
@@ -77,7 +78,7 @@ namespace KKTools
             }
             return isSuccess;
         }
-        HttpResponseMessage sendFPTRequest(HttpClient client,string input, KKToolsDbContext _context, string voiceName)
+        HttpResponseMessage sendFPTRequest(HttpClient client,string input, KKToolsDbContext _context, string voiceName, int streamID)
         {
             HttpResponseMessage result = new HttpResponseMessage();
 
@@ -105,7 +106,8 @@ namespace KKTools
             {
                 Content = contentRequest,
                 CreatedDate = DateTime.Now,
-                Status = result.IsSuccessStatusCode
+                Status = result.IsSuccessStatusCode,
+                StreamID = streamID
             };
             _context.Requests.Add(newRequest);
             _context.SaveChanges();

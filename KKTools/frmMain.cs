@@ -13,17 +13,19 @@ namespace KKTools
         Util util = new Util();
         //Số ký tự tối đa cho một request.
         int chunkSize = 80;
+        int streamIDHistory;
         public frmMain()
         {
             InitializeComponent();
             LoadDefaultSelection();
             setDefaultAllCombobox();
-            
+            //loadHistoryRequst
+            loadHistoryRequest();
             //Tạo các folder tương ứng với các ServiceTTS Name
             util.CreateSoundDirectory(listServiceTTS);
             //timerCheckInternet.Start();
             util.informStatusConnectionToInternet(lblConnection);
-           
+            util.getNotDownloadedSound();
         }
 
         private void LoadDefaultSelection()
@@ -108,27 +110,59 @@ namespace KKTools
             bool allowDownloadSound = checkBoxDownloadSound.Checked;
             string voiceName = cboxVoice.SelectedItem.ToString();
             string speed = cboxSpeed.SelectedItem.ToString();
-            //Xử lý input
-            string input = txtInput.Text;
-            string[] parts = input.Split('.');
-            Api api = new Api();
-            foreach (var item in parts)
+            var streamOld = util._context.Streams.OrderByDescending(x => x.ID).FirstOrDefault();
+            if (txtInput.Text != streamOld.Content || streamOld.voiceName != voiceName || streamOld.speed != speed)
             {
-                if(item.Length> chunkSize)
+                //Xử lý input
+                string input = txtInput.Text;
+                List<string> stringRequests = util.getStringRequests(input, chunkSize);
+                if (stringRequests.Count < 1)
                 {
-                    // Nếu một sentence quá dài (lớn hơn chunkSize = 80 ký tự). Phân tách thành từng đoạn chunkSize để request
-                    for (int i = 0; i < item.Length; i += chunkSize)
+                    MessageBox.Show("Phai nhap vao input");
+                    return;
+                }
+                int totalRequest = stringRequests.Count;
+                int totalDone = 0;
+                var newStream = new Stream()
+                {
+                    Content = input,
+                    DoneSentence = totalDone,
+                    TotalSentence = totalRequest,
+                    CreatedDate = DateTime.Now,
+                    voiceName = voiceName,
+                    speed = speed
+                };
+                util._context.Streams.Add(newStream);
+                util._context.SaveChanges();
+                var stream = util._context.Streams.OrderByDescending(x => x.ID).FirstOrDefault();
+                int lastStreamID = stream.ID;
+                var api = new Api();
+                for (int i = 0; i < totalRequest; i++)
+                {
+                    bool isSuccess = api.requestFPTAPI(stringRequests[i], lastStreamID, voiceName, "", allowDownloadSound);
+                    if (isSuccess) totalDone++;
+                    else
                     {
-                        if (i + chunkSize > item.Length) chunkSize = item.Length - i;
-                        string text = item.Substring(i, chunkSize);
-                        //  bool isSuccess = api.requestFPTAPI(input, voiceName, "", allowDownloadSound);
+                        MessageBox.Show("Request is Faild");
+                        break;
                     }
                 }
-              //  bool isSuccess = api.requestFPTAPI(input, voiceName, "", allowDownloadSound);
+                if (totalDone > 0)
+                {
+                    stream.DoneSentence = totalDone;
+                    util._context.SaveChanges();
+                }
+
+                MessageBox.Show("Tạo giọng nói thành công!");
+                speakListPlayMedia(stream);
             }
-            
-            
-           // MessageBox.Show("Tạo giọng nói thành công!");
+            else
+            {
+                var util = new Util();
+                util.reCreate(streamOld.ID, chunkSize, voiceName, allowDownloadSound);
+                speakListPlayMedia(streamOld);
+            }
+
         }
 
         private void timerCheckInternet_Tick(object sender, EventArgs e)
@@ -141,12 +175,56 @@ namespace KKTools
         {
 
            var listResult = util._context.Results.Where(x => x.Downloaded == true).ToList();
-            wmpMain.URL = listResult[listResult.Count - 1].SoundPath;
+            wmpMain.URL = System.IO.Directory.GetCurrentDirectory() + "\\" + listResult[listResult.Count - 1].SoundPath;
         }
 
-    
+        private void txtInput_TextChanged(object sender, EventArgs e)
+        {
+            if(txtInput.Text!= null)
+            {
+                btnSpeak.Text = "Tạo giọng nói";
+                btnSpeak.Visible = false;
+            }
+        }
+        public void loadHistoryRequest()
+        {
+            KKToolsDbContext _context = new KKToolsDbContext();
+            var historyRequsts = _context.Streams.ToList();
+            dgvHistoryQuery.DataSource = historyRequsts;
+        }
+        public void speakListPlayMedia(Stream str)
+        {
+            var newestStream = str.ID;
+            var listMusicOfStream = util._context.Results.OrderBy(x => x.ID).Where(x => x.StreamID == newestStream).ToList();
+            WMPLib.IWMPPlaylist pl;
+            pl = wmpMain.playlistCollection.newPlaylist("Stream");
+            bool flag = true;
+            foreach (var result in listMusicOfStream)
+            {
+                WMPLib.IWMPMedia m1 = wmpMain.newMedia(System.IO.Directory.GetCurrentDirectory() + "\\" + result.SoundPath);
+                pl.appendItem(m1);
+                wmpMain.currentPlaylist = pl;
+                if (flag == true)
+                {
+                    wmpMain.Ctlcontrols.play();
+                    flag = false;
+                }
+            }
+            wmpMain.currentPlaylist = pl;
+        }
 
+        private void dgvHistoryQuery_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            int numrow;
+            numrow = e.RowIndex;
+            streamIDHistory = Convert.ToInt32(dgvHistoryQuery.Rows[numrow].Cells[0].Value.ToString());
+        }
 
+        private void btnRepeat_Click(object sender, EventArgs e)
+        {
+            var stream = util._context.Streams.Where(x => x.ID == streamIDHistory).FirstOrDefault();
+            speakListPlayMedia(stream);
+        }
 
         //==================================================================================
         //Don't delete these two following 

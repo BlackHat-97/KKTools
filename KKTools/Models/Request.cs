@@ -18,5 +18,9 @@ namespace KKTools.Models
         public DateTime? CreatedDate { set; get; }
 
         public bool Status { get; set; }
+        [Required]
+        public int StreamID { get; set; }
+        [ForeignKey("StreamID")]
+        public virtual Stream Stream { set; get; }
     }
 }

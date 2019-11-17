@@ -35,7 +35,10 @@ namespace KKTools.Models
         public int ResponseID { get; set; }
         [ForeignKey("ResponseID")]
         public virtual Response Response { set; get; }
-
+        [Required]
+        public int StreamID { get; set; }
+        [ForeignKey("StreamID")]
+        public virtual Stream Stream { set; get; }
     }
 
 }

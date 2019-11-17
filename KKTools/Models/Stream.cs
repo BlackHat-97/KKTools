@@ -21,5 +21,7 @@ namespace KKTools.Models
         public int TotalSentence { get; set; }
         //Tổng số câu đã thực hiện- tương ứng với số request ĐÃ thực hiện
         public int DoneSentence { get; set; }
+        public string voiceName { get; set; }
+        public string speed { get; set; }
     }
 }

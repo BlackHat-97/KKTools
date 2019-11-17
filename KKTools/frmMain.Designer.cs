@@ -80,6 +80,7 @@
             this.txtInput.Name = "txtInput";
             this.txtInput.Size = new System.Drawing.Size(436, 248);
             this.txtInput.TabIndex = 1;
+            this.txtInput.TextChanged += new System.EventHandler(this.txtInput_TextChanged);
             // 
             // cboxService
             // 
@@ -154,6 +155,7 @@
             this.btnRepeat.TabIndex = 3;
             this.btnRepeat.Text = "Nghe lại";
             this.btnRepeat.UseVisualStyleBackColor = true;
+            this.btnRepeat.Click += new System.EventHandler(this.btnRepeat_Click);
             // 
             // menuStripMain
             // 
@@ -241,6 +243,7 @@
             this.dgvHistoryQuery.Name = "dgvHistoryQuery";
             this.dgvHistoryQuery.Size = new System.Drawing.Size(367, 205);
             this.dgvHistoryQuery.TabIndex = 5;
+            this.dgvHistoryQuery.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvHistoryQuery_CellClick);
             // 
             // label5
             // 
